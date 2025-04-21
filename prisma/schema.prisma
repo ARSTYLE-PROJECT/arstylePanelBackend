@@ -1,0 +1,237 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Client {
+  id                 Int        @id @default(autoincrement())
+  type               String
+  title              String?
+  lastName           String
+  email              String
+  phoneNumber        String
+  companyName        String?
+  registrationNumber String?
+  vatNumber          String?
+  street             String
+  city               String
+  postalCode         String
+  country            String
+  invoices           Invoice[]
+  messages           Message[]
+  workSites          WorkSite[]
+  Quote              Quote[]
+}
+
+model Document {
+  id         Int      @id @default(autoincrement())
+  url        String
+  type       String
+  uploadedAt DateTime @default(now())
+}
+
+model Charge {
+  id       Int       @id @default(autoincrement())
+  type     String
+  expenses Expense[]
+}
+
+model Expense {
+  id       Int      @id @default(autoincrement())
+  amount   Float
+  type     String
+  date     DateTime @default(now())
+  chargeId Int
+  charge   Charge?  @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id               Int                @id @default(autoincrement())
+  type             String
+  client           Client             @relation(fields: [clientId], references: [id])
+  clientId         Int
+  quote            Quote?             @relation(fields: [quoteId], references: [id])
+  quoteId          Int?
+  vat              Vat                @relation(fields: [vatId], references: [id])
+  vatId            Int
+  date             DateTime           @default(now())
+  payments         Payment[]
+  pdfImages        PdfImage[]
+  InvoiceToService InvoiceToService[]
+}
+
+model Material {
+  id              Int               @id @default(autoincrement())
+  name            String
+  quantity        Float
+  unit            String
+  purchasePrice   Float
+  stockSupplier   StockSupplier?    @relation(fields: [stockSupplierId], references: [id])
+  stockSupplierId Int?
+  category        MaterialCategory? @relation(fields: [categoryId], references: [id])
+  categoryId      Int?
+  supplier        Supplier?         @relation(fields: [supplierId], references: [id])
+  supplierId      Int?
+}
+
+model MaterialCategory {
+  id        Int        @id @default(autoincrement())
+  name      String
+  materials Material[]
+}
+
+model Message {
+  id           Int            @id @default(autoincrement())
+  content      String
+  client       Client         @relation(fields: [clientId], references: [id])
+  clientId     Int
+  date         DateTime       @default(now())
+  Notification Notification[]
+}
+
+model Notification {
+  id        Int     @id @default(autoincrement())
+  type      String
+  message   Message @relation(fields: [messageId], references: [id])
+  messageId Int
+  status    String
+  readTime  Int?
+}
+
+model Payment {
+  id        Int      @id @default(autoincrement())
+  amount    Float
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id])
+  invoiceId Int
+  date      DateTime @default(now())
+}
+
+model PdfImage {
+  id        Int      @id @default(autoincrement())
+  url       String
+  quote     Quote?   @relation(fields: [quoteId], references: [id])
+  quoteId   Int?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+  invoiceId Int?
+}
+
+model Quote {
+  id             Int              @id @default(autoincrement())
+  client         Client           @relation(fields: [clientId], references: [id])
+  clientId       Int
+  vat            Vat              @relation(fields: [vatId], references: [id])
+  vatId          Int
+  date           DateTime         @default(now())
+  pdfImages      PdfImage[]
+  quotedServices QuotedService[]
+  Invoice        Invoice[]
+  Signature      Signature[]
+  QuoteToService QuoteToService[]
+}
+
+model QuotedService {
+  id          Int    @id @default(autoincrement())
+  serviceType String
+  rate        Rate   @relation(fields: [rateId], references: [id])
+  rateId      Int
+  Quote       Quote? @relation(fields: [quoteId], references: [id])
+  quoteId     Int?
+}
+
+model Rate {
+  id                Int             @id @default(autoincrement())
+  description       String
+  priceExcludingTax Float
+  quotedServices    QuotedService[]
+}
+
+model Service {
+  id                Int                @id @default(autoincrement())
+  type              String
+  description       String
+  priceExcludingTax Float
+  invoiceServices   InvoiceToService[]
+  quoteServices     QuoteToService[]
+}
+
+model Signature {
+  id       Int      @id @default(autoincrement())
+  quote    Quote    @relation(fields: [quoteId], references: [id])
+  quoteId  Int
+  date     DateTime @default(now())
+  comments String?
+}
+
+model StockSupplier {
+  id           Int        @id @default(autoincrement())
+  name         String
+  deliveryTime Int
+  materials    Material[]
+}
+
+model Supplier {
+  id         Int        @id @default(autoincrement())
+  name       String
+  street     String
+  city       String
+  postalCode String
+  country    String
+  addressId  Int?
+  Material   Material[]
+}
+
+model Vat {
+  id          Int       @id @default(autoincrement())
+  rate        Float
+  description String
+  invoices    Invoice[]
+  quotes      Quote[]
+}
+
+model WorkSite {
+  id         Int     @id @default(autoincrement())
+  client     Client? @relation(fields: [clientId], references: [id])
+  clientId   Int?
+  street     String
+  city       String
+  postalCode String
+  country    String
+}
+
+model InvoiceToService {
+  A       Int
+  B       Int
+  invoice Invoice @relation(fields: [A], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [B], references: [id], onDelete: Cascade)
+
+  @@id([A, B])
+}
+
+model QuoteToService {
+  A       Int
+  B       Int
+  quote   Quote   @relation(fields: [A], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [B], references: [id], onDelete: Cascade)
+
+  @@id([A, B])
+}

@@ -22,6 +22,12 @@ export class LoggerService {
     });
   }
 
+  log(message: string) {
+    this.logger.log({
+      level: 'info',
+      message,
+    });
+  }
   error(message: string, error: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.logger.error(message, { error });

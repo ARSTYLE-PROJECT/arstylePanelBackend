@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { PdfImagesService } from './pdf-images.service';
 import { CreatePdfImageDto } from './dto/create-pdf-image.dto';
@@ -21,9 +22,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
-@ApiTags('pdf-images')
+@ApiTags('Pdf Images')
 @Controller('pdf-images')
+@UseGuards(AuthGuard)
 export class PdfImagesController {
   constructor(private readonly pdfImagesService: PdfImagesService) {}
 

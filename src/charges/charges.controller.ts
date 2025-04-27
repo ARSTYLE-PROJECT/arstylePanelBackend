@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ChargesService } from './charges.service';
 import { CreateChargeDto } from './dto/create-charge.dto';
@@ -18,9 +19,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @ApiTags('Charges')
 @Controller('charges')
+@UseGuards(AuthGuard)
 export class ChargesController {
   constructor(private readonly chargesService: ChargesService) {}
 

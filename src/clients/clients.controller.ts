@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -18,9 +19,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @ApiTags('Clients')
 @Controller('clients')
+@UseGuards(AuthGuard)
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 

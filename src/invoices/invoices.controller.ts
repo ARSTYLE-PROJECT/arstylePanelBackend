@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -21,9 +22,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @ApiTags('Invoices')
 @Controller('invoices')
+@UseGuards(AuthGuard)
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 

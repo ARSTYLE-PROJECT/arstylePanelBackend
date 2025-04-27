@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { SignaturesService } from './signatures.service';
 import { CreateSignatureDto } from './dto/create-signature.dto';
@@ -21,9 +22,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
-@ApiTags('signatures')
+@ApiTags('Signatures')
 @Controller('signatures')
+@UseGuards(AuthGuard)
 export class SignaturesController {
   constructor(private readonly signaturesService: SignaturesService) {}
 

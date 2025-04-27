@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -23,10 +24,12 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
 @ApiTags('Expenses')
 @ApiBearerAuth()
 @Controller('expenses')
+@UseGuards(AuthGuard)
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 

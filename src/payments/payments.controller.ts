@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -21,9 +22,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
-@ApiTags('payments')
+@ApiTags('Payments')
 @Controller('payments')
+@UseGuards(AuthGuard)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 

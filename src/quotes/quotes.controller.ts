@@ -22,7 +22,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 
-@ApiTags('quotes')
+@ApiTags('Quotes')
 @Controller('quotes')
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) {}

@@ -22,7 +22,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 
-@ApiTags('materials')
+@ApiTags('Materials')
 @Controller('materials')
 export class MaterialsController {
   constructor(private readonly materialsService: MaterialsService) {}

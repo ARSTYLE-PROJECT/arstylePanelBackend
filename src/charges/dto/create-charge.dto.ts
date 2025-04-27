@@ -1,10 +1,15 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
-import { ApiExtraModels } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export const createChargeSchema = z.object({
   type: z.string().min(1),
 });
 
-@ApiExtraModels()
-export class CreateChargeDto extends createZodDto(createChargeSchema) {}
+export class CreateChargeDto extends createZodDto(createChargeSchema) {
+  @ApiProperty({
+    example: 'electricity',
+    description: 'Type of charge',
+  })
+  type: string;
+}

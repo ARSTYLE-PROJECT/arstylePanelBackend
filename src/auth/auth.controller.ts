@@ -1,20 +1,11 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Get,
-  UseGuards,
-  Req,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto, loginSchema } from './dto/login.dto';
-import { RegisterDto, registerSchema } from './dto/register.dto';
-import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { LoginDto, LoginOrRegisterWithGoogleAuthDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { LoggerService } from '../common/logger/logger.service';
-import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -22,34 +13,30 @@ export class AuthController {
     private logger: LoggerService,
   ) {}
 
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  async googleAuth() {
-    // This endpoint will redirect to Google
-  }
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  async googleAuthCallback(@Req() req: Request) {
+  @ApiOperation({ summary: 'Login or register with Google' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered/logged in successfully',
+  })
+  @ApiResponse({ status: 403, description: 'Invalid Google ID token' })
+  @Post('login-register-with-google')
+  async registerWithGoogle(@Body() dto: LoginOrRegisterWithGoogleAuthDto) {
     try {
-      if (!req.user) {
-        throw new UnauthorizedException('User not found');
-      }
-      const user = await this.authService.handleGoogleLogin(req.user as any);
-      return this.authService.login({
-        email: user.email,
-        id: user.id,
-      });
+      return await this.authService.loginOrRegisterWithGoogle(dto);
     } catch (error) {
-      this.logger.error('Google authentication failed', error);
+      this.logger.error('Google login failed', error);
       throw error;
     }
   }
 
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid data or email already in use',
+  })
   @Post('register')
-  async register(
-    @Body(new ZodValidationPipe(registerSchema)) registerDto: RegisterDto,
-  ) {
+  async register(@Body() registerDto: RegisterDto) {
     try {
       const user = await this.authService.register(registerDto);
       return this.authService.login({
@@ -62,8 +49,11 @@ export class AuthController {
     }
   }
 
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @Post('login')
-  async login(@Body(new ZodValidationPipe(loginSchema)) loginDto: LoginDto) {
+  async login(@Body() loginDto: LoginDto) {
     try {
       const user = await this.authService.validateUser(
         loginDto.email,

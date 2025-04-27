@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { QuotesService } from './quotes.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
@@ -21,9 +22,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
-@ApiTags('quotes')
+@ApiTags('Quotes')
 @Controller('quotes')
+@UseGuards(AuthGuard)
 export class QuotesController {
   constructor(private readonly quotesService: QuotesService) {}
 

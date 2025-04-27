@@ -28,7 +28,6 @@ export class QuotedServicesService {
     try {
       return await this.prisma.quotedService.findMany({
         include: {
-          serviceType: true,
           rate: true,
           Quote: true,
         },
@@ -44,7 +43,6 @@ export class QuotedServicesService {
       const quotedService = await this.prisma.quotedService.findUnique({
         where: { id },
         include: {
-          serviceType: true,
           rate: true,
           Quote: true,
         },

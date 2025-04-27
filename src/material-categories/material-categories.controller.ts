@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { MaterialCategoriesService } from './material-categories.service';
 import { CreateMaterialCategoryDto } from './dto/create-material-category.dto';
@@ -21,9 +22,11 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
-@ApiTags('material-categories')
+@ApiTags('Material Categories')
 @Controller('material-categories')
+@UseGuards(AuthGuard)
 export class MaterialCategoriesController {
   constructor(
     private readonly materialCategoriesService: MaterialCategoriesService,

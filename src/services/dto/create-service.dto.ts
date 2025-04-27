@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
-import { ApiExtraModels } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty } from '@nestjs/swagger';
 
 export const createServiceSchema = z.object({
   type: z.string().min(1),
@@ -9,4 +9,23 @@ export const createServiceSchema = z.object({
 });
 
 @ApiExtraModels()
-export class CreateServiceDto extends createZodDto(createServiceSchema) {}
+export class CreateServiceDto extends createZodDto(createServiceSchema) {
+  @ApiProperty({
+    example: 'Installation',
+    description: 'The type of service',
+  })
+  type: string;
+
+  @ApiProperty({
+    example: 'Full installation service including materials',
+    description: 'Detailed description of the service',
+  })
+  description: string;
+
+  @ApiProperty({
+    example: 85.5,
+    description: 'The price of the service excluding tax',
+    type: 'number',
+  })
+  priceExcludingTax: number;
+}

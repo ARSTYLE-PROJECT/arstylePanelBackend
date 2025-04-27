@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
 import { DocumentsController } from './documents.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
   imports: [PrismaModule],
-  providers: [DocumentsService],
+  providers: [DocumentsService, JwtService],
   controllers: [DocumentsController],
   exports: [DocumentsService],
 })

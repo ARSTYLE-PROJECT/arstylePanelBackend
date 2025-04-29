@@ -8,10 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
 interface JwtPayload {
-  userId?: string;
   sub?: string;
-  isActive?: boolean;
-  isEmailVerified?: boolean;
 }
 
 @Injectable()
@@ -27,21 +24,14 @@ export class AuthGuard implements CanActivate {
     }
 
     const token = authHeader.split(' ')[1];
-
     try {
-      const decoded = this.jwtService.verify<JwtPayload>(token);
-      request['userId'] = decoded.userId || decoded.sub;
-
-      if (decoded.isActive === false) {
-        throw new UnauthorizedException('This user account is deactivated.');
-      }
-      if (decoded.isEmailVerified === false) {
-        throw new UnauthorizedException(
-          'This user email address is not yet verified.',
-        );
-      }
+      const decoded = this.jwtService.verify<JwtPayload>(token, {
+        secret: process.env.JWT_SECRET,
+      });
+      request['userId'] = decoded.sub;
       return true;
-    } catch {
+    } catch (error) {
+      console.error('JWT verification error:', error);
       throw new UnauthorizedException('Token is invalid or expired.');
     }
   }

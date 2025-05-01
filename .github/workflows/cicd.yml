@@ -102,41 +102,42 @@ jobs:
 
       - name: Deploy Application
         env:
-          # Utilise UN SEUL secret pour l'utilisateur et l'hôte
+          # ... (vos variables env restent les mêmes) ...
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          PROJECT_PATH: '~/project' # Chemin unique sur le serveur
-          # Récupère les variables définies à l'étape précédente
+          PROJECT_PATH: "~/project"
           IMAGE_TAG: ${{ steps.set_env.outputs.image_tag }}
           ENV_SUFFIX: ${{ steps.set_env.outputs.env_suffix }}
           ENV_FILE: ${{ steps.set_env.outputs.env_file }}
           PROJECT_NAME: ${{ steps.set_env.outputs.project_name }}
         run: |
           echo "Deploying tag '${{ env.IMAGE_TAG }}' for environment '${{ env.ENV_SUFFIX }}'..."
-          ssh -o StrictHostKeyChecking=accept-new ${SSH_USER}@${SSH_HOST} "
-            set -e
+          # Ajout de bash -c '...' pour encapsuler toutes les commandes
+          ssh -o StrictHostKeyChecking=accept-new ${SSH_USER}@${SSH_HOST} "bash -c '
+            set -e # Important de garder set -e à l'intérieur de bash -c
+
+            echo \"Navigating to project directory...\" # Guillemets internes échappés
             cd ${{ env.PROJECT_PATH }}
 
             # Met à jour le tag dans le BON fichier .env (.env.dev ou .env.prod)
-            echo 'Updating ${{ env.ENV_FILE }} with IMAGE_TAG=${{ env.IMAGE_TAG }}'
-            if grep -q '^IMAGE_TAG=' ${{ env.ENV_FILE }}; then
-              sed -i 's|^IMAGE_TAG=.*$|IMAGE_TAG=${{ env.IMAGE_TAG }}|' ${{ env.ENV_FILE }}
+            echo \"Updating ${{ env.ENV_FILE }} with IMAGE_TAG=${{ env.IMAGE_TAG }}\"
+            if grep -q \"^IMAGE_TAG=\" ${{ env.ENV_FILE }}; then # Guillemets autour de la regex
+              sed -i \"s|^IMAGE_TAG=.*$|IMAGE_TAG=${{ env.IMAGE_TAG }}|\" ${{ env.ENV_FILE }} # Guillemets autour de l'expression sed
             else
-              echo 'IMAGE_TAG=${{ env.IMAGE_TAG }}' >> ${{ env.ENV_FILE }}
+              echo \"IMAGE_TAG=${{ env.IMAGE_TAG }}\" >> ${{ env.ENV_FILE }}
             fi
 
             # Pull l'image (tag 'dev' ou SHA spécifique)
-            # Utilise -p pour spécifier le projet compose et --env-file pour charger le bon .env
-            echo 'Pulling new API image (tag: ${{ env.IMAGE_TAG }})...'
+            echo \"Pulling new API image (tag: ${{ env.IMAGE_TAG }})...\"
             docker compose -p ${{ env.PROJECT_NAME }} --env-file ${{ env.ENV_FILE }} pull api
 
             # Redémarre les services pour cet environnement spécifique
-            echo 'Starting services for project ${{ env.PROJECT_NAME }}...'
+            echo \"Starting services for project ${{ env.PROJECT_NAME }}...\"
             docker compose -p ${{ env.PROJECT_NAME }} --env-file ${{ env.ENV_FILE }} up -d --remove-orphans
 
-            # Nettoyage global des images (attention, peut supprimer des images partagées si non utilisées)
-            echo 'Pruning old docker images...'
+            # Nettoyage global des images
+            echo \"Pruning old docker images...\"
             docker image prune -af
 
-            echo 'Deployment for environment ${{ env.ENV_SUFFIX }} finished successfully.'
-          "
+            echo \"Deployment for environment ${{ env.ENV_SUFFIX }} finished successfully.\"
+          '" # Fin de la chaîne pour bash -c et pour ssh

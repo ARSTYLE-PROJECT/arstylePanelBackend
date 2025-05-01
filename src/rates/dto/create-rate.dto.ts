@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
-import { ApiExtraModels } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 
 export const createRateSchema = z
@@ -11,4 +11,17 @@ export const createRateSchema = z
   .strict() satisfies z.ZodType<Prisma.RateCreateInput>;
 
 @ApiExtraModels()
-export class CreateRateDto extends createZodDto(createRateSchema) {}
+export class CreateRateDto extends createZodDto(createRateSchema) {
+  @ApiProperty({
+    example: 'Hourly labor rate',
+    description: 'The description of the rate',
+  })
+  description: string;
+
+  @ApiProperty({
+    example: 45.5,
+    description: 'The price excluding tax',
+    type: 'number',
+  })
+  priceExcludingTax: number;
+}

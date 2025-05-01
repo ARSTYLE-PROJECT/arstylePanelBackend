@@ -3,11 +3,12 @@ import { QuotesService } from './quotes.service';
 import { QuotesController } from './quotes.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { LoggerModule } from '../common/logger/logger.module';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [PrismaModule, LoggerModule] as const,
+  imports: [PrismaModule, LoggerModule],
   controllers: [QuotesController],
-  providers: [QuotesService],
+  providers: [QuotesService, JwtService],
   exports: [QuotesService],
 })
 export class QuotesModule {}

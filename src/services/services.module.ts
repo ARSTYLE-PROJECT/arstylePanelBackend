@@ -3,11 +3,12 @@ import { ServicesService } from './services.service';
 import { ServicesController } from './services.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { LoggerModule } from '../common/logger/logger.module';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
-  imports: [PrismaModule, LoggerModule] as const,
+  imports: [PrismaModule, LoggerModule],
   controllers: [ServicesController],
-  providers: [ServicesService],
+  providers: [ServicesService, JwtService],
   exports: [ServicesService],
 })
 export class ServicesModule {}

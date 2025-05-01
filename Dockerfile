@@ -1,51 +1,38 @@
-# # Use Node.js 20.11.1 base image
-# FROM node:20.11.1-alpine
+# Dockerfile
 
-# # Set working directory
-# WORKDIR /app
-
-# # Copy package.json and package-lock.json
-# COPY package*.json ./
-
-# # Install dependencies
-# RUN npm cache clean --force
-# RUN npm install --legacy-peer-deps
-
-# # Copy the rest of the application code
-# COPY . .
-
-# # Generate Prisma Client code
-# RUN npx prisma generate
-
-# # Expose the port the app runs on, here, I was using port 3333
-# EXPOSE 4001
-
-# # Command to run the app
-# CMD [  "npm", "run", "start:migrate:prod" ]
-# Use Node.js 20.11.1 base image
-FROM node:20.11.1-alpine
-
-# Set working directory
+# ---- Base Stage ----
+FROM node:20-alpine AS base
 WORKDIR /app
-
-# Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies
-RUN npm cache clean --force
-RUN npm install --legacy-peer-deps
-
-# Copy the rest of the application code
+# ---- Dependencies Stage ----
+FROM base AS dependencies
+RUN npm ci
+COPY prisma ./prisma/
+RUN npx prisma generate
 COPY . .
 
-# Generate Prisma Client code
-RUN npx prisma generate
-
-# Build the application (important!)
+# ---- Build Stage ----
+FROM dependencies AS build
 RUN npm run build
+RUN npm prune --production
 
-# Expose the port the app runs on (4001)
-EXPOSE 4001
+# ---- Production Stage ----
+# Crée l'image finale légère
+FROM node:20-alpine AS production
+WORKDIR /app
+# Copie les dépendances de production depuis l'étape 'build'
+COPY --from=build /app/node_modules ./node_modules
+# Copie le code buildé depuis l'étape 'build'
+COPY --from=build /app/dist ./dist
+# Copie le client Prisma généré
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+# Copie le schéma Prisma ET LE DOSSIER migrations - DÉCOMMENTÉ
+COPY --from=build /app/prisma ./prisma
+COPY package*.json ./
 
-# Command to run migrations and then start the app
-CMD ["npm", "run", "start:migrate:prod"]
+# Expose le port 3000 de l'application
+EXPOSE 3000
+
+# Commande pour démarrer l'application - CORRIGÉE
+CMD ["node", "dist/main.js"]

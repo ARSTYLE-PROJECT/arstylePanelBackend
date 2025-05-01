@@ -1,22 +1,70 @@
-# YAML configuration file for Docker Compose version 3.8
-# Define services
-services:
-  # Database service using PostgreSQL image
-  database:
-    image: postgres:latest # Use the latest PostgreSQL image from Docker Hub
-    environment:
-      POSTGRES_DB: dbPgArPanel # Define the name of the database
-      POSTGRES_USER: pgArPanelAdmin # Define the username for accessing the database
-      POSTGRES_PASSWORD: L8RsWF9u~eTxVE+b # Define the password for the user
-    ports:
-      - '5432:5432' # Forward the container's port 5432 to the host machine's port 5432 for accessing PostgreSQL
+# docker-compose.yml
+# version: '3.8' # Obsolète
 
-  # Backend service
-  backend:
-    build: . # Build the Docker image using the Dockerfile in the current directory
+services:
+  api:
+    container_name: nest_api_${APP_ENV:-prod}
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - '4001:4001' # Forward the container's port 4001 to the host machine's port 3333 for accessing the backend service
+      - ${API_PORT:-3000}:3000
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
     depends_on:
-      - database # Ensure that the backend service starts after the database service is up and running
-    env_file:
-      - .env # Load environment variables from the .env file in the current directory
+      postgres:
+        condition: service_healthy
+    networks:
+      - api_network
+    # Commande pour démarrer l'application - CORRIGÉE
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db_${APP_ENV:-prod}
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - ${POSTGRES_PORT:-5432}:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - api_network
+    healthcheck:
+      test:
+        ['CMD', 'pg_isready', '-U', '${POSTGRES_USER}', '-d', '${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin4:
+    container_name: pgadmin4_${APP_ENV:-prod}
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - ${PGADMIN_PORT:-5050}:80
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - api_network
+
+networks:
+  api_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  pgadmin_data:

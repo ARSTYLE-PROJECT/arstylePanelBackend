@@ -6,13 +6,12 @@ import {
   Patch,
   Param,
   Delete,
-  UseGuards,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
-import { AuthGuard } from '../auth/auth.guard';
 import { Request } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { createExpenseSchema } from './dto/create-expense.dto';
@@ -25,8 +24,9 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
 
-@ApiTags('expenses')
+@ApiTags('Expenses')
 @ApiBearerAuth()
 @Controller('expenses')
 @UseGuards(AuthGuard)

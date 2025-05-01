@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
-import { ApiExtraModels } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty } from '@nestjs/swagger';
 
 export const createQuotedServiceSchema = z.object({
   serviceType: z.string().min(1),
@@ -11,4 +11,25 @@ export const createQuotedServiceSchema = z.object({
 @ApiExtraModels()
 export class CreateQuotedServiceDto extends createZodDto(
   createQuotedServiceSchema,
-) {}
+) {
+  @ApiProperty({
+    example: 'Installation',
+    description: 'The type of service being quoted',
+  })
+  serviceType: string;
+
+  @ApiProperty({
+    example: 1,
+    description: 'The ID of the rate applied to this service',
+    type: 'number',
+  })
+  rateId: number;
+
+  @ApiProperty({
+    example: 1,
+    description: 'The ID of the quote this service belongs to',
+    type: 'number',
+    required: false,
+  })
+  quoteId?: number;
+}

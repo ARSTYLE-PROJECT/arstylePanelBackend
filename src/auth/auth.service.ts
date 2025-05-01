@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoggerService } from '../common/logger/logger.service';
 import * as bcrypt from 'bcrypt';
+import { LoginOrRegisterWithGoogleAuthDto } from './dto/login.dto';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
@@ -13,31 +15,64 @@ export class AuthService {
     private logger: LoggerService,
   ) {}
 
-  async handleGoogleLogin(profile: {
-    email: string;
-    name: string;
-    picture?: string;
-  }) {
+  async loginOrRegisterWithGoogle(dto: LoginOrRegisterWithGoogleAuthDto) {
+    const { idToken } = dto;
+
     try {
-      let user = await this.prisma.user.findUnique({
-        where: { email: profile.email },
+      const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
 
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            email: profile.email,
-            name: profile.name,
-            avatar: profile.picture,
-            password: await bcrypt.hash(
-              Math.random().toString(36).slice(-8),
-              10,
-            ),
-          },
-        });
+      const payload = ticket.getPayload();
+
+      if (
+        !payload ||
+        !payload.email ||
+        !payload.family_name ||
+        !payload.given_name
+      ) {
+        throw new UnauthorizedException('Invalid Google ID token');
       }
 
-      return user;
+      const u = await this.prisma.user.findUnique({
+        where: {
+          email: payload?.email?.toLocaleLowerCase(),
+        },
+      });
+
+      if (u) {
+        if (!u.googleId) {
+          await this.prisma.user.update({
+            where: {
+              id: u.id,
+            },
+            data: {
+              googleId: payload?.sub,
+            },
+          });
+        }
+      }
+
+      const user = await this.prisma.user.create({
+        data: {
+          email: payload.email.toLocaleLowerCase(),
+          lastname: payload.family_name,
+          firstname: payload.given_name,
+          password: '',
+          googleId: payload.sub,
+        },
+      });
+      const jwt = this.jwtService.sign({
+        userId: user.id,
+      });
+
+      return {
+        statusCode: 201,
+        jwt,
+        message: 'User registered successfully',
+      };
     } catch (error) {
       this.logger.error('Google login failed', error);
       throw error;
@@ -80,7 +115,8 @@ export class AuthService {
       const user = await this.prisma.user.create({
         data: {
           email: registerDto.email,
-          name: registerDto.name,
+          lastname: registerDto.lastname,
+          firstname: registerDto.firstname,
           password: hashedPassword,
         },
       });

@@ -1,27 +1,27 @@
-# docker-compose.yml
-# version: '3.8' # Obsolète
+# docker-compose.yml (Version pour serveur dev/prod)
 
 services:
   api:
-    container_name: nest_api_${APP_ENV:-prod}
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # !!! MODIFICATION IMPORTANTE !!!
+    # Remplace 'build:' par 'image:'. Adaptez VOTRE_NOM_UTILISATEUR_GITHUB/VOTRE_NOM_REPO.
+    image: ghcr.io/tounatech/arstylePanelBackend:${IMAGE_TAG:-latest}
+    container_name: nest_api_${APP_ENV:-prod} # APP_ENV vient du .env du serveur
     ports:
-      - ${API_PORT:-3000}:3000
+      - ${API_PORT:-3000}:3000 # API_PORT vient du .env du serveur
     environment:
+      # Ces variables viennent du .env du serveur
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production} # NODE_ENV vient du .env du serveur
+      PORT: 3000 # Port interne
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - api_network
-    # Commande pour démarrer l'application - CORRIGÉE
+    # Garde la commande pour exécuter les migrations au démarrage du conteneur
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
 
   postgres:
@@ -29,11 +29,12 @@ services:
     container_name: postgres_db_${APP_ENV:-prod}
     restart: always
     environment:
+      # Ces variables viennent du .env du serveur
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - ${POSTGRES_PORT:-5432}:5432
+      - ${POSTGRES_PORT:-5432}:5432 # POSTGRES_PORT vient du .env du serveur
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -50,10 +51,11 @@ services:
     image: dpage/pgadmin4
     restart: always
     environment:
+      # Ces variables viennent du .env du serveur
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - ${PGADMIN_PORT:-5050}:80
+      - ${PGADMIN_PORT:-5050}:80 # PGADMIN_PORT vient du .env du serveur
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:

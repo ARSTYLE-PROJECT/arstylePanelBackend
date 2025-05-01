@@ -1,0 +1,199 @@
+name: CI/CD Pipeline API
+
+on:
+  push:
+    branches:
+      - dev # Branche de pré-production
+      - main # Branche de production
+
+# Variables d'environnement pour le workflow
+env:
+  REGISTRY: ghcr.io # Utilisation de GitHub Container Registry
+  # Construit le nom de l'image basé sur le dépôt GitHub (ex: ghcr.io/votre-user/votre-repo)
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  #######################################
+  # Étape 1: Construire l'Image Docker #
+  #######################################
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # Lire le code
+      packages: write # Écrire sur GHCR
+
+    outputs:
+      # Exporte le tag de l'image (basé sur le SHA du commit) pour les jobs suivants
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for multi-platform builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        id: buildx # Donne un ID pour référencer la sortie
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # Token automatique fourni par Actions
+
+      - name: Extract Docker metadata (Tags & Labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # type=schedule
+            # type=ref,event=branch
+            # type=ref,event=pr
+            type=sha,prefix=,suffix=,format=short # Tag avec le SHA court (ex: a1b2c3d)
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }} # Tag 'latest' seulement pour la branche 'main'
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }} # Tag 'dev' seulement pour la branche 'dev'
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Utilise le Dockerfile spécifié (chemin relatif à la racine du repo)
+          file: ./Dockerfile
+          platforms: linux/amd64 # Spécifiez la plateforme cible si nécessaire (linux/arm64 pour certains serveurs)
+          push: true # Pousse l'image vers le registre
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Activation du cache pour accélérer les builds futurs
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  ##########################################
+  # Étape 2: Déployer en Pré-production   #
+  ##########################################
+  deploy-dev:
+    name: Deploy to Development (Pre-production)
+    needs: build # S'exécute après le succès du job 'build'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev' # Condition: uniquement pour la branche 'dev'
+
+    steps:
+      - name: Configure SSH Agent for Dev
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          # Assurez-vous que ce secret contient la clé PRIVÉE pour le serveur DEV
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY_DEV }}
+
+      - name: Add Dev Server Host Key to known_hosts
+        # Améliore la sécurité en vérifiant l'identité du serveur
+        run: ssh-keyscan -H ${{ secrets.SSH_HOST_DEV }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Dev Server
+        env:
+          SSH_USER: ${{ secrets.SSH_USER_DEV }}
+          SSH_HOST: ${{ secrets.SSH_HOST_DEV }}
+          # Utilise le tag 'dev' pour le déploiement sur le serveur dev
+          IMAGE_TAG: dev
+          PROJECT_PATH: '~/project' # Adaptez le chemin si nécessaire
+        run: |
+          echo "Deploying tag '${{ env.IMAGE_TAG }}' to Dev server..."
+          ssh -o StrictHostKeyChecking=accept-new ${SSH_USER}@${SSH_HOST} "
+            set -e # Arrête le script si une commande échoue
+
+            echo 'Navigating to project directory...'
+            cd ${{ env.PROJECT_PATH }}
+
+            # Met à jour le tag dans le fichier .env du serveur
+            # /!\ Attention: S'assure que la ligne IMAGE_TAG existe ou l'ajoute.
+            echo 'Updating .env with IMAGE_TAG=${{ env.IMAGE_TAG }}'
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i 's|^IMAGE_TAG=.*$|IMAGE_TAG=${{ env.IMAGE_TAG }}|' .env
+            else
+              echo 'IMAGE_TAG=${{ env.IMAGE_TAG }}' >> .env
+            fi
+
+            # (Optionnel) Affiche le .env pour vérification dans les logs GitHub Actions
+            # N'affiche PAS les secrets si votre .env en contient qui ne sont pas déjà masqués par GitHub Actions
+            # echo 'Current .env content:'
+            # cat .env | grep 'IMAGE_TAG' # Affiche seulement la ligne modifiée
+
+            # Pull la nouvelle image (avec le tag 'dev')
+            echo 'Pulling new API image (tag: ${{ env.IMAGE_TAG }})...'
+            docker compose pull api
+
+            # Redémarre les services avec la nouvelle image
+            # Docker Compose lira le .env mis à jour pour savoir quelle image utiliser
+            echo 'Starting services...'
+            docker compose up -d --remove-orphans
+
+            # Nettoyage des anciennes images Docker non utilisées (optionnel)
+            echo 'Pruning old docker images...'
+            docker image prune -af
+
+            echo 'Deployment to Dev finished successfully.'
+          "
+
+  ##########################################
+  # Étape 3: Déployer en Production       #
+  ##########################################
+  deploy-prod:
+    name: Deploy to Production
+    needs: build # S'exécute après le succès du job 'build'
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Condition: uniquement pour la branche 'main'
+
+    # Ajoute un environnement pour potentiellement demander une approbation manuelle via les réglages GitHub
+    environment:
+      name: production
+      url: https://votre-domaine-prod.com # Mettez l'URL de votre application
+
+    steps:
+      - name: Configure SSH Agent for Prod
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          # Assurez-vous que ce secret contient la clé PRIVÉE pour le serveur PROD
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+
+      - name: Add Prod Server Host Key to known_hosts
+        run: ssh-keyscan -H ${{ secrets.SSH_HOST_PROD }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Production Server
+        env:
+          SSH_USER: ${{ secrets.SSH_USER_PROD }}
+          SSH_HOST: ${{ secrets.SSH_HOST_PROD }}
+          # Utilise le tag SHA court spécifique du commit pour la prod (plus précis)
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+          PROJECT_PATH: '~/project' # Adaptez le chemin si nécessaire
+        run: |
+          echo "Deploying tag '${{ env.IMAGE_TAG }}' to Production server..."
+          ssh -o StrictHostKeyChecking=accept-new ${SSH_USER}@${SSH_HOST} "
+            set -e
+
+            echo 'Navigating to project directory...'
+            cd ${{ env.PROJECT_PATH }}
+
+            echo 'Updating .env with IMAGE_TAG=${{ env.IMAGE_TAG }}'
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i 's|^IMAGE_TAG=.*$|IMAGE_TAG=${{ env.IMAGE_TAG }}|' .env
+            else
+              echo 'IMAGE_TAG=${{ env.IMAGE_TAG }}' >> .env
+            fi
+
+            # echo 'Current .env content:'
+            # cat .env | grep 'IMAGE_TAG'
+
+            echo 'Pulling new API image (tag: ${{ env.IMAGE_TAG }})...'
+            docker compose pull api
+
+            echo 'Starting services...'
+            docker compose up -d --remove-orphans
+
+            echo 'Pruning old docker images...'
+            docker image prune -af
+
+            echo 'Deployment to Production finished successfully.'
+          "

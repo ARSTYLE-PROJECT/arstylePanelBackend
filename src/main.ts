@@ -42,7 +42,7 @@ async function bootstrap() {
 
 bootstrap()
   .then(() => {
-    console.log(`Server is running on port ${process.env.PORT ?? 3000}`);
+    console.log(`Server is running on port ${process.env.API_PORT ?? 3000}`);
     console.log(`Swagger documentation available at /api/docs`);
   })
   .catch((err) => {

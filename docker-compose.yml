@@ -1,44 +1,42 @@
 # docker-compose.yml (Version pour serveur dev/prod)
+# docker-compose.yml (Version paramétrable pour serveur unique)
 
 services:
   api:
-    # !!! MODIFICATION IMPORTANTE !!!
-    # Remplace 'build:' par 'image:'. Adaptez VOTRE_NOM_UTILISATEUR_GITHUB/VOTRE_NOM_REPO.
     image: ghcr.io/tounatech/arstylePanelBackend:${IMAGE_TAG:-latest}
-    container_name: nest_api_${APP_ENV:-prod} # APP_ENV vient du .env du serveur
+    container_name: nest_api_${APP_ENV} # Utilise APP_ENV du .env
     ports:
-      - ${API_PORT:-3000}:3000 # API_PORT vient du .env du serveur
+      - ${API_PORT}:3000 # Utilise API_PORT du .env
     environment:
-      # Ces variables viennent du .env du serveur
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      NODE_ENV: ${NODE_ENV:-production} # NODE_ENV vient du .env du serveur
-      PORT: 3000 # Port interne
+      NODE_ENV: ${NODE_ENV}
+      PORT: 3000
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - api_network
-    # Garde la commande pour exécuter les migrations au démarrage du conteneur
+      # Nom de réseau basé sur APP_ENV
+      - api_network_${APP_ENV}
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
 
   postgres:
     image: postgres:15-alpine
-    container_name: postgres_db_${APP_ENV:-prod}
+    container_name: postgres_db_${APP_ENV}
     restart: always
     environment:
-      # Ces variables viennent du .env du serveur
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - ${POSTGRES_PORT:-5432}:5432 # POSTGRES_PORT vient du .env du serveur
+      - ${POSTGRES_PORT}:5432 # Utilise POSTGRES_PORT du .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Nom de volume basé sur APP_ENV
+      - postgres_data_${APP_ENV}:/var/lib/postgresql/data
     networks:
-      - api_network
+      - api_network_${APP_ENV}
     healthcheck:
       test:
         ['CMD', 'pg_isready', '-U', '${POSTGRES_USER}', '-d', '${POSTGRES_DB}']
@@ -47,26 +45,28 @@ services:
       retries: 5
 
   pgadmin4:
-    container_name: pgadmin4_${APP_ENV:-prod}
+    container_name: pgadmin4_${APP_ENV}
     image: dpage/pgadmin4
     restart: always
     environment:
-      # Ces variables viennent du .env du serveur
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - ${PGADMIN_PORT:-5050}:80 # PGADMIN_PORT vient du .env du serveur
+      - ${PGADMIN_PORT}:80 # Utilise PGADMIN_PORT du .env
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      # Nom de volume basé sur APP_ENV
+      - pgadmin_data_${APP_ENV}:/var/lib/pgadmin
     depends_on:
       - postgres
     networks:
-      - api_network
+      - api_network_${APP_ENV}
 
+# Définit les réseaux (les noms seront préfixés par le nom du projet compose)
 networks:
-  api_network:
+  api_network_${APP_ENV}:
     driver: bridge
 
+# Définit les volumes (Docker créera postgres_data_dev, postgres_data_prod, etc.)
 volumes:
-  postgres_data:
-  pgadmin_data:
+  postgres_data_${APP_ENV}:
+  pgadmin_data_${APP_ENV}:

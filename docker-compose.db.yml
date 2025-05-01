@@ -1,0 +1,52 @@
+# docker-compose.db.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db_local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432" # Ou un autre port hôte si nécessaire localement
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+    networks:
+      # Se connecte au réseau externe créé manuellement
+      - shared_db_network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin4:
+    container_name: pgadmin4_local
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80" # Ou un autre port hôte si nécessaire localement
+    volumes:
+      - pgadmin_data_local:/var/lib/pgadmin
+    depends_on:
+      # Garde la dépendance de démarrage simple à l'intérieur de ce fichier
+      - postgres
+    networks:
+      # Se connecte au réseau externe créé manuellement
+      - shared_db_network
+
+volumes:
+  postgres_data_local:
+  pgadmin_data_local:
+
+networks:
+  shared_db_network:
+    # Définit que ce réseau est externe et a déjà été créé
+    external:
+      name: api_db_network # Doit correspondre au nom créé avec 'docker network create'

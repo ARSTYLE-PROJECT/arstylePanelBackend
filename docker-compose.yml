@@ -1,72 +1,82 @@
-# docker-compose.yml (Version pour serveur dev/prod)
-# docker-compose.yml (Version paramétrable pour serveur unique)
+# docker-compose.yml (Pour développement LOCAL)
+# version: '3.8' # Optionnel mais bonne pratique
 
 services:
   api:
-    image: ghcr.io/tounatech/arstylePanelBackend:${IMAGE_TAG:-latest}
-    container_name: nest_api_${APP_ENV} # Utilise APP_ENV du .env
+    # --- Construire l'image localement ---
+    build:
+      context: .
+      dockerfile: Dockerfile # Spécifie le Dockerfile à utiliser
+    # image: ghcr.io/... # Ligne 'image:' supprimée/commentée
+    # ------------------------------------
+    container_name: nest_api_local # Nom de conteneur simple
     ports:
-      - ${API_PORT}:3000 # Utilise API_PORT du .env
+      - "3000:3000" # Port standard 3000 -> 3000 (sauf si conflit local)
     environment:
+      # Variables lues depuis le fichier .env à la racine du projet
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      NODE_ENV: ${NODE_ENV}
-      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-development} # Environnement Node.js (dev par défaut)
+      PORT: 3000 # Port interne de l'app NestJS
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      # Nom de réseau basé sur APP_ENV
-      - api_network_${APP_ENV}
+      - api_network_local # Nom de réseau simple
+    # Garde la commande pour les migrations et le démarrage standard
     command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    # --- Option pour Hot-Reloading (Développement Actif) ---
+    # Si vous voulez que vos changements de code soient pris en compte sans rebuild :
+    # 1. Décommentez les lignes 'volumes:' ci-dessous
+    # 2. Changez 'command:' pour utiliser 'npm run start:dev' (ou équivalent)
+    # volumes:
+    #   - .:/app # Monte le code local dans /app
+    #   - /app/node_modules # Empêche l'écrasement de node_modules par le mount ci-dessus
+    # command: npm run start:dev
+    # ----------------------------------------------------
 
   postgres:
     image: postgres:15-alpine
-    container_name: postgres_db_${APP_ENV}
-    restart: always
+    container_name: postgres_db_local # Nom simple
+    restart: unless-stopped # Redémarre sauf si arrêté manuellement
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - ${POSTGRES_PORT}:5432 # Utilise POSTGRES_PORT du .env
+      - "5432:5432" # Port standard (sauf si conflit local)
     volumes:
-      # Nom de volume basé sur APP_ENV
-      - postgres_data_${APP_ENV}:/var/lib/postgresql/data
+      - postgres_data_local:/var/lib/postgresql/data # Volume nommé simple
     networks:
-      - api_network_${APP_ENV}
+      - api_network_local
     healthcheck:
-      test:
-        ['CMD', 'pg_isready', '-U', '${POSTGRES_USER}', '-d', '${POSTGRES_DB}']
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   pgadmin4:
-    container_name: pgadmin4_${APP_ENV}
+    container_name: pgadmin4_local # Nom simple
     image: dpage/pgadmin4
-    restart: always
+    restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - ${PGADMIN_PORT}:80 # Utilise PGADMIN_PORT du .env
+      - "5050:80" # Port standard (sauf si conflit local)
     volumes:
-      # Nom de volume basé sur APP_ENV
-      - pgadmin_data_${APP_ENV}:/var/lib/pgadmin
+      - pgadmin_data_local:/var/lib/pgadmin # Volume nommé simple
     depends_on:
       - postgres
     networks:
-      - api_network_${APP_ENV}
+      - api_network_local
 
-# Définit les réseaux (les noms seront préfixés par le nom du projet compose)
 networks:
-  api_network_${APP_ENV}:
+  api_network_local: # Définition simple
     driver: bridge
 
-# Définit les volumes (Docker créera postgres_data_dev, postgres_data_prod, etc.)
 volumes:
-  postgres_data_${APP_ENV}:
-  pgadmin_data_${APP_ENV}:
+  postgres_data_local: # Définition simple
+  pgadmin_data_local:

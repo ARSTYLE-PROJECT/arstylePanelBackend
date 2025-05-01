@@ -5,6 +5,7 @@
 
 # folder
 old
+.vscode/
 
 # Logs
 logs

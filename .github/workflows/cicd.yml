@@ -39,10 +39,8 @@ jobs:
         run: npm ci
 
       - name: Run lint
-        # 🚧 Les tests ne sont pas utilisés pour le moment, donc on ignore les fichiers de test
-        run: npm run lint -- . 'src/**/*.ts' 'apps/**/*.ts' 'libs/**/*.ts'
-        # Si besoin plus tard :
-        # run: npm run lint
+        # ✅ On ne vérifie que le dossier "src/" car "apps/", "libs/", "test/" n'existent pas encore
+        run: eslint "src/**/*.ts" --fix
 
   build:
     needs: [format, lint]

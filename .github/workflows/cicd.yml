@@ -63,7 +63,7 @@ jobs:
 
     env:
       NODE_ENV: development
-      API_PORT: 3001
+      API_PORT: 3000
       POSTGRES_PORT: 5432
       PGADMIN_PORT: 5050
       DATABASE_URL: ${{ secrets.DATABASE_URL }}

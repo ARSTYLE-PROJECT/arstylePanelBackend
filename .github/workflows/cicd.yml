@@ -39,9 +39,8 @@ jobs:
         run: npm ci
 
       - name: Run lint
-        # ✅ On vérifie les fichiers dans src/, apps/ et libs/
-        # ❌ On ignore test/ car les tests ne sont pas utilisés
-        run: eslint "{src,apps,libs}/**/*.ts" --fix
+        # ✅ Utilise npx pour appeler le binaire eslint local (pas besoin d’installation globale)
+        run: npx eslint "{src,apps,libs}/**/*.ts" --fix
 
   build:
     needs: [format, lint]

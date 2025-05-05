@@ -1,0 +1,35 @@
+# docker-compose.api.yml
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nest_api_local
+    ports:
+      - "3000:3000" # Ou un autre port hôte si nécessaire localement
+    environment:
+      DATABASE_URL: ${DATABASE_URL} # Doit pointer vers 'postgres:5432'
+      JWT_SECRET: ${JWT_SECRET}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+    # ATTENTION: depends_on avec condition ne fonctionne pas bien entre fichiers séparés
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy # Supprimé ! La dépendance doit être gérée manuellement ou par script
+    networks:
+      # Se connecte au réseau externe créé manuellement
+      - shared_db_network
+    # Commande de démarrage - RISQUE d'échec si la DB n'est pas prête
+    command: sh -c "echo 'Attente de la base de données...' && sleep 5 && echo 'Tentative de migration...' && npx prisma migrate deploy && node dist/main.js"
+    # NOTE: Le 'sleep 5' est une attente basique, pas fiable.
+    # Une meilleure solution utiliserait un script 'wait-for-it.sh' ou similaire.
+
+networks:
+  shared_db_network:
+    # Définit que ce réseau est externe et a déjà été créé
+    external:
+      name: api_db_network # Doit correspondre au nom créé avec 'docker network create'

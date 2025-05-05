@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Run lint
-        # ✅ Utilise npx pour appeler le binaire eslint local (pas besoin d’installation globale)
+        # ✅ On inclut src/, apps/, libs/. test/ est ignoré (pas de tests actifs)
         run: npx eslint "{src,apps,libs}/**/*.ts" --fix
 
   build:
@@ -66,7 +66,6 @@ jobs:
       API_PORT: 3000
       POSTGRES_PORT: 5432
       PGADMIN_PORT: 5050
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -75,6 +74,8 @@ jobs:
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      # ✅ Connexion correcte au PostgreSQL Dockerisé
+      DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
 
     steps:
       - uses: actions/checkout@v3
@@ -104,4 +105,4 @@ jobs:
       # - name: Run e2e tests
       #   run: npm run test:e2e
       #   env:
-      #     DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      #     DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
